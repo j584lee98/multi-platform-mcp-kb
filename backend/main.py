@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from auth.routes import router as auth_router
-from backend.auth.auth import authenticate
+from auth.auth import authenticate
 
 app = FastAPI(
     title="Multi-Platform MCP KB API",
