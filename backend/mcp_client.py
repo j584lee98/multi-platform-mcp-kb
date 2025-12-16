@@ -7,8 +7,8 @@ MCP_SERVER_URL = os.getenv("MCP_GOOGLE_DRIVE_URL", "http://mcp-google-drive:8080
 
 async def list_google_drive_files(token: str):
     try:
-        async with sse_client(MCP_SERVER_URL) as streams:
-            async with ClientSession(streams.read, streams.write) as session:
+        async with sse_client(MCP_SERVER_URL) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 
                 # Call the tool
@@ -20,4 +20,5 @@ async def list_google_drive_files(token: str):
                     return result.content[0].text
                 return "No output from tool."
     except Exception as e:
-        return f"Error connecting to MCP server: {str(e)}"
+        print(f"Error calling MCP tool: {e}")
+        return f"Error: {str(e)}"

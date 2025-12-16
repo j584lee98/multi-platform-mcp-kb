@@ -4,7 +4,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 # Initialize FastMCP server
-mcp = FastMCP("google-drive")
+mcp = FastMCP("google-drive", host="0.0.0.0", port=8080)
 
 @mcp.tool()
 def list_files(token: str, page_size: int = 10) -> str:
@@ -36,5 +36,4 @@ def list_files(token: str, page_size: int = 10) -> str:
         return f"Error listing files: {str(e)}"
 
 if __name__ == "__main__":
-    # Run as SSE server for Docker compatibility
     mcp.run(transport="sse")
