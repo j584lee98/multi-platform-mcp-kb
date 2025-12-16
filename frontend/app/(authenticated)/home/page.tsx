@@ -26,18 +26,6 @@ export default function HomePage() {
     router.push("/login");
   };
 
-  const handleConnectGoogle = async () => {
-    try {
-      const res = await fetch(`http://localhost:8000/auth/google/login?username=${user}`);
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error("Failed to initiate Google login", error);
-    }
-  };
-
   const handleListFiles = async () => {
     try {
       setFiles("Loading...");
@@ -66,11 +54,11 @@ export default function HomePage() {
         
         <div className="mb-8 space-y-4">
           <button 
-            onClick={handleConnectGoogle}
+            onClick={() => router.push("/connectors/google-drive")}
             className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-2 w-full py-2 rounded-md"
           >
             <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-            Connect Google Drive
+            Manage Google Drive Connection
           </button>
 
           <button

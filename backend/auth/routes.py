@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from database import get_db
+from models import User, OAuthToken
 from .services import register_user, authenticate_user
 from .oauth import get_google_auth_url, handle_google_callback
 
@@ -32,4 +34,32 @@ def google_login(username: str):
 @router.get("/google/callback")
 async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     await handle_google_callback(request, db)
-    return RedirectResponse(url="http://localhost:3000/home")
+    return RedirectResponse(url="http://localhost:3000/connectors/google-drive")
+
+@router.get("/google/status")
+async def google_status(username: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "google"))
+    token = result.scalars().first()
+    
+    return {"connected": token is not None}
+
+@router.delete("/google/disconnect")
+async def google_disconnect(username: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "google"))
+    token = result.scalars().first()
+    
+    if token:
+        await db.delete(token)
+        await db.commit()
+        
+    return {"msg": "Disconnected successfully"}
