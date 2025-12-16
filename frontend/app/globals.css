@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-error: #ef4444;
+  --color-success: #22c55e;
+  
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --background: var(--color-background);
+  --foreground: var(--color-text);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --color-primary: #60a5fa;
+    --color-primary-hover: #3b82f6;
+    --color-surface: #1e293b;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-border: #334155;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global Component Styles */
+@layer base {
+  h1 {
+    @apply text-3xl font-bold mb-6 text-center;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold mb-4;
+  }
+  
+  p {
+    @apply mb-4;
+  }
+  
+  a {
+    @apply text-blue-500 hover:text-blue-600 hover:underline transition-colors;
+  }
+
+  label {
+    @apply block text-sm font-medium mb-1 text-[var(--color-text-muted)];
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="email"] {
+    @apply w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[var(--color-surface)] text-[var(--foreground)] transition-all;
+  }
+
+  button {
+    @apply w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+}
+
+/* Utility classes for layout */
+.page-container {
+  @apply min-h-screen flex flex-col items-center justify-center py-12 sm:px-6 lg:px-8;
+}
+
+.card {
+  @apply bg-[var(--color-surface)] py-8 px-4 shadow sm:rounded-lg sm:px-10 w-full max-w-md border border-[var(--color-border)];
+}
+
+.form-group {
+  @apply mb-4;
+}
+
+.error-message {
+  @apply text-red-500 text-sm mt-2 text-center;
+}
+
+.success-message {
+  @apply text-green-500 text-sm mt-2 text-center;
 }

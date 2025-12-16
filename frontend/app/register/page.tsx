@@ -36,34 +36,36 @@ export default function RegisterPage() {
   };
 
   return (
-    <div>
-      <h1>Register</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Username:</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        {success && <p style={{ color: "green" }}>{success}</p>}
-        <button type="submit">Register</button>
-      </form>
-      <p>
-        Already have an account? <a href="/login">Login</a>
-      </p>
+    <div className="page-container">
+      <div className="card">
+        <h1>Register</h1>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Username:</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          {error && <p className="error-message">{error}</p>}
+          {success && <p className="success-message">{success}</p>}
+          <button type="submit">Register</button>
+        </form>
+        <p className="mt-4 text-center text-sm text-[var(--color-text-muted)]">
+          Already have an account? <a href="/login">Login</a>
+        </p>
+      </div>
     </div>
   );
 }

@@ -30,11 +30,13 @@ export default function HomePage() {
   }
 
   return (
-    <div>
-      <h1>Home</h1>
-      <p>Welcome, {user}!</p>
-      <p>This is a placeholder home page.</p>
-      <button onClick={handleLogout}>Logout</button>
+    <div className="page-container">
+      <div className="card text-center">
+        <h1>Home</h1>
+        <p className="text-lg mb-6">Welcome, <span className="font-semibold">{user}</span>!</p>
+        <p className="text-[var(--color-text-muted)] mb-8">This is a placeholder home page.</p>
+        <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600">Logout</button>
+      </div>
     </div>
   );
 }

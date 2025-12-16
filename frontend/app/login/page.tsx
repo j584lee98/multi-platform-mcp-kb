@@ -35,33 +35,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div>
-      <h1>Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Username:</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <button type="submit">Login</button>
-      </form>
-      <p>
-        Don&#39;t have an account? <a href="/register">Register</a>
-      </p>
+    <div className="page-container">
+      <div className="card">
+        <h1>Login</h1>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Username:</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          {error && <p className="error-message">{error}</p>}
+          <button type="submit">Login</button>
+        </form>
+        <p className="mt-4 text-center text-sm text-[var(--color-text-muted)]">
+          Don&#39;t have an account? <a href="/register">Register</a>
+        </p>
+      </div>
     </div>
   );
 }
