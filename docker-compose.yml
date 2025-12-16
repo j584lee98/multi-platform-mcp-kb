@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db/mcpkb
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OAUTHLIB_INSECURE_TRANSPORT=1
+      - OAUTHLIB_RELAX_TOKEN_SCOPE=1
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mcpkb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mcpkb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mcp-google-drive:
+    build: ./mcp/google-drive
+    command: python server.py
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8080
+
+volumes:
+  postgres_data:

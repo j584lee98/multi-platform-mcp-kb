@@ -2,3 +2,11 @@ fastapi[standard]
 uvicorn
 bcrypt
 pydantic
+sqlalchemy
+asyncpg
+google-auth
+google-auth-oauthlib
+google-api-python-client
+python-dotenv
+mcp
+httpx
