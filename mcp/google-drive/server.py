@@ -8,13 +8,18 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 # Initialize FastMCP server
 mcp = FastMCP("google-drive", host="0.0.0.0", port=8080)
 
+import json
+
+# ... imports ...
+
 @mcp.tool()
-def list_files(token: str, page_size: int = 10) -> str:
+def list_files(token: str, folder_id: str = 'root', page_size: int = 10) -> str:
     """
-    List files from Google Drive.
+    List files from Google Drive. Returns a JSON string.
     
     Args:
         token: The OAuth2 access token for the user.
+        folder_id: The ID of the folder to list files from (default: 'root').
         page_size: Number of files to return.
     """
     try:
@@ -23,19 +28,90 @@ def list_files(token: str, page_size: int = 10) -> str:
         service = build('drive', 'v3', credentials=creds)
 
         # Call the Drive v3 API
+        q = f"'{folder_id}' in parents and trashed = false"
         results = service.files().list(
-            pageSize=page_size, fields="nextPageToken, files(id, name)").execute()
+            q=q, pageSize=page_size, fields="nextPageToken, files(id, name, mimeType)").execute()
         items = results.get('files', [])
 
-        if not items:
-            return "No files found."
-        
-        output = "Files:\n"
-        for item in items:
-            output += f"{item['name']} ({item['id']})\n"
-        return output
+        return json.dumps(items)
     except Exception as e:
-        return f"Error listing files: {str(e)}"
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+def search_files(token: str, query: str) -> str:
+    """
+    Search for files in Google Drive using a query string. Returns a JSON string.
+    
+    Args:
+        token: The OAuth2 access token for the user.
+        query: The search query (e.g., "name contains 'report'").
+    """
+    try:
+        creds = Credentials(token=token)
+        service = build('drive', 'v3', credentials=creds)
+
+        results = service.files().list(
+            q=query, pageSize=10, fields="nextPageToken, files(id, name, mimeType)").execute()
+        items = results.get('files', [])
+
+        return json.dumps(items)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def delete_file(token: str, file_id: str) -> str:
+    """
+    Permanently delete a file or folder.
+    
+    Args:
+        token: The OAuth2 access token for the user.
+        file_id: The ID of the file/folder to delete.
+    """
+    try:
+        creds = Credentials(token=token)
+        service = build('drive', 'v3', credentials=creds)
+        service.files().delete(fileId=file_id).execute()
+        return f"Successfully deleted file {file_id}"
+    except Exception as e:
+        return f"Error deleting file: {str(e)}"
+
+@mcp.tool()
+def trash_file(token: str, file_id: str) -> str:
+    """
+    Move a file or folder to trash.
+    
+    Args:
+        token: The OAuth2 access token for the user.
+        file_id: The ID of the file/folder to trash.
+    """
+    try:
+        creds = Credentials(token=token)
+        service = build('drive', 'v3', credentials=creds)
+        body = {'trashed': True}
+        service.files().update(fileId=file_id, body=body).execute()
+        return f"Successfully moved file {file_id} to trash"
+    except Exception as e:
+        return f"Error trashing file: {str(e)}"
+
+@mcp.tool()
+def rename_file(token: str, file_id: str, new_name: str) -> str:
+    """
+    Rename a file or folder.
+    
+    Args:
+        token: The OAuth2 access token for the user.
+        file_id: The ID of the file/folder to rename.
+        new_name: The new name.
+    """
+    try:
+        creds = Credentials(token=token)
+        service = build('drive', 'v3', credentials=creds)
+        body = {'name': new_name}
+        service.files().update(fileId=file_id, body=body).execute()
+        return f"Successfully renamed file {file_id} to {new_name}"
+    except Exception as e:
+        return f"Error renaming file: {str(e)}"
 
 @mcp.tool()
 def read_file_content(token: str, file_id: str) -> str:
@@ -90,7 +166,7 @@ def create_folder(token: str, name: str, parent_id: str = None) -> str:
 @mcp.tool()
 def search_files(token: str, query: str) -> str:
     """
-    Search for files in Google Drive using a query string.
+    Search for files in Google Drive using a query string. Returns a JSON string.
     
     Args:
         token: The OAuth2 access token for the user.
@@ -104,15 +180,10 @@ def search_files(token: str, query: str) -> str:
             q=query, pageSize=10, fields="nextPageToken, files(id, name, mimeType)").execute()
         items = results.get('files', [])
 
-        if not items:
-            return "No files found matching the query."
-        
-        output = "Found files:\n"
-        for item in items:
-            output += f"{item['name']} ({item['id']}) - {item['mimeType']}\n"
-        return output
+        return json.dumps(items)
     except Exception as e:
-        return f"Error searching files: {str(e)}"
+        return json.dumps({"error": str(e)})
+
 
 @mcp.tool()
 def create_text_file(token: str, name: str, content: str, parent_id: str = None) -> str:

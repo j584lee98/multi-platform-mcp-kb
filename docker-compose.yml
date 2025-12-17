@@ -10,6 +10,7 @@ services:
       - /app/node_modules
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
     depends_on:
       - backend
 
@@ -48,6 +49,9 @@ services:
   mcp-google-drive:
     build: ./mcp/google-drive
     command: python server.py
+    volumes:
+      - ./mcp/google-drive:/app
+
     ports:
       - "8080:8080"
     environment:

@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (path: string) => pathname === path;
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth");
+    router.push("/login");
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col sticky top-0">
@@ -48,6 +54,12 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-100">
+        <button 
+          onClick={handleLogout}
+          className="w-full px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors mb-2"
+        >
+          Logout
+        </button>
         <div className="text-xs text-gray-400 text-center">
           v0.1.0
         </div>

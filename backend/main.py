@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from auth.routes import router as auth_router
 from chat.routes import router as chat_router
+from mcp_routes import router as mcp_router
 from auth.auth import authenticate
 from database import engine, Base
 
@@ -19,6 +20,7 @@ async def startup():
 # Include auth routes
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(mcp_router)
 
 # Configure CORS
 app.add_middleware(
