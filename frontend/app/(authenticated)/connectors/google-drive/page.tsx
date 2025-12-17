@@ -124,87 +124,6 @@ export default function GoogleDriveConnectorPage() {
     if (user) fetchFiles(user, targetFolder.id);
   };
 
-  const handleCreateFolder = async () => {
-    const name = prompt("Enter folder name:");
-    if (!name || !user) return;
-
-    try {
-      await fetch("http://localhost:8000/mcp/google-drive/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user,
-          tool_name: "create_folder",
-          arguments: { name, parent_id: currentFolder }
-        })
-      });
-      fetchFiles(user, currentFolder);
-    } catch (error) {
-      console.error("Failed to create folder", error);
-    }
-  };
-
-  const handleCreateFile = async () => {
-    const name = prompt("Enter file name:");
-    if (!name || !user) return;
-    const content = prompt("Enter file content:");
-    if (content === null) return;
-
-    try {
-      await fetch("http://localhost:8000/mcp/google-drive/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user,
-          tool_name: "create_text_file",
-          arguments: { name, content, parent_id: currentFolder }
-        })
-      });
-      fetchFiles(user, currentFolder);
-    } catch (error) {
-      console.error("Failed to create file", error);
-    }
-  };
-
-  const handleDelete = async (fileId: string) => {
-    if (!confirm("Are you sure you want to delete this item?") || !user) return;
-
-    try {
-      await fetch("http://localhost:8000/mcp/google-drive/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user,
-          tool_name: "delete_file",
-          arguments: { file_id: fileId }
-        })
-      });
-      fetchFiles(user, currentFolder);
-    } catch (error) {
-      console.error("Failed to delete item", error);
-    }
-  };
-
-  const handleRename = async (fileId: string, currentName: string) => {
-    const newName = prompt("Enter new name:", currentName);
-    if (!newName || !user || newName === currentName) return;
-
-    try {
-      await fetch("http://localhost:8000/mcp/google-drive/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user,
-          tool_name: "rename_file",
-          arguments: { file_id: fileId, new_name: newName }
-        })
-      });
-      fetchFiles(user, currentFolder);
-    } catch (error) {
-      console.error("Failed to rename item", error);
-    }
-  };
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -253,82 +172,41 @@ export default function GoogleDriveConnectorPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Google Drive</h1>
-          <p className="text-gray-500 mt-1">Manage your files and folders directly from here.</p>
+      {/* Connection Card */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 mb-8 flex flex-col items-center justify-center text-center">
+        <div className="p-4 bg-blue-50 rounded-full mb-4">
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-12 h-12" />
         </div>
-        <button 
-          onClick={() => router.push("/home")} 
-          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
-        >
-          ← Back to Home
-        </button>
-      </div>
-
-      {/* Connection Status Card */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg text-gray-900">Connection Status</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                <p className="text-sm text-gray-600">
-                  {connected ? "Connected to Google Drive" : "Not connected"}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {connected ? (
-            <button 
-              onClick={handleDisconnect}
-              className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
-            >
-              Disconnect
-            </button>
-          ) : (
-            <button 
-              onClick={handleConnect}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
-            >
-              Connect Account
-            </button>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Google Drive</h1>
+        
+        {connected ? (
+          <button 
+            onClick={handleDisconnect}
+            className="w-64 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+          >
+            Disconnect
+          </button>
+        ) : (
+          <button 
+            onClick={handleConnect}
+            className="w-64 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+          >
+            Connect
+          </button>
+        )}
       </div>
 
       {connected && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Toolbar */}
           <div className="p-4 border-b border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleCreateFolder} 
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-              >
-                <span className="text-lg leading-none">+</span> New Folder
-              </button>
-              <button 
-                onClick={handleCreateFile} 
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-              >
-                <span className="text-lg leading-none">+</span> New File
-              </button>
-            </div>
-            
             <form onSubmit={handleSearch} className="relative w-full sm:w-72">
               <input
                 type="text"
                 placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             </form>
@@ -341,7 +219,7 @@ export default function GoogleDriveConnectorPage() {
                 {index > 0 && <span className="mx-2 text-gray-400">/</span>}
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
-                  className={`hover:text-blue-600 transition-colors ${
+                  className={`bg-transparent border-none hover:text-blue-600 transition-colors ${
                     index === breadcrumbs.length - 1 
                       ? "font-semibold text-gray-900 pointer-events-none" 
                       : "text-gray-600"
@@ -375,9 +253,8 @@ export default function GoogleDriveConnectorPage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="px-6 py-3 font-medium text-gray-500 w-[50%]">Name</th>
+                      <th className="px-6 py-3 font-medium text-gray-500 w-[70%]">Name</th>
                       <th className="px-6 py-3 font-medium text-gray-500 w-[30%]">Type</th>
-                      <th className="px-6 py-3 font-medium text-gray-500 text-right w-[20%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -387,7 +264,7 @@ export default function GoogleDriveConnectorPage() {
                           {file.mimeType === "application/vnd.google-apps.folder" ? (
                             <div
                               onClick={() => handleNavigate(file.id, file.name)}
-                              className="flex items-center gap-3 text-gray-700"
+                              className="flex items-center gap-3 text-gray-700 cursor-pointer"
                             >
                               <span className="text-xl">📁</span>
                               {file.name}
@@ -401,24 +278,6 @@ export default function GoogleDriveConnectorPage() {
                         </td>
                         <td className="px-6 py-3 text-gray-500 truncate max-w-[200px]" title={file.mimeType}>
                           {file.mimeType.split('.').pop()?.split('-').pop()}
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleRename(file.id, file.name)}
-                              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-md transition-all"
-                              title="Rename"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleDelete(file.id)}
-                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-md transition-all"
-                              title="Delete"
-                            >
-                              🗑️
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     ))}
