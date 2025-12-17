@@ -168,3 +168,44 @@ async def handle_github_callback(request: Request, db: AsyncSession):
     
     await db.commit()
     return {"msg": "GitHub connected successfully"}
+
+async def refresh_google_token(token_record: OAuthToken, db: AsyncSession):
+    """
+    Refreshes the Google OAuth token if it is expired or close to expiring.
+    """
+    if not token_record.refresh_token:
+        return token_record.access_token
+    
+    # Check if expired (with 5 minute buffer)
+    # Note: expires_at might be None if not set initially, though it should be for Google
+    if token_record.expires_at:
+        # Ensure we're comparing compatible datetimes (naive vs aware)
+        # Assuming expires_at is stored as naive UTC in DB
+        now = datetime.datetime.utcnow()
+        if token_record.expires_at > now + datetime.timedelta(minutes=5):
+            return token_record.access_token
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "refresh_token": token_record.refresh_token,
+                "grant_type": "refresh_token",
+            }
+        )
+        
+    if response.status_code == 200:
+        data = response.json()
+        token_record.access_token = data["access_token"]
+        # Calculate new expiry
+        expires_in = data.get("expires_in", 3600)
+        token_record.expires_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)
+        
+        await db.commit()
+        return token_record.access_token
+    else:
+        print(f"Failed to refresh Google token: {response.text}")
+        # Return existing token as fallback, though it likely won't work
+        return token_record.access_token

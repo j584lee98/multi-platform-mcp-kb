@@ -4,6 +4,7 @@ from sqlalchemy.future import select
 from database import get_db
 from models import User, OAuthToken
 from mcp_client import call_google_drive_tool, call_github_tool
+from auth.oauth import refresh_google_token
 from pydantic import BaseModel
 from typing import Dict, Any
 
@@ -28,10 +29,13 @@ async def execute_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_d
     
     if not token_record:
         raise HTTPException(status_code=400, detail="Google Drive not connected")
+    
+    # Refresh token if needed
+    access_token = await refresh_google_token(token_record, db)
         
     # Inject token into arguments
     arguments = request.arguments.copy()
-    arguments["token"] = token_record.access_token
+    arguments["token"] = access_token
     
     # Call MCP
     response = await call_google_drive_tool(request.tool_name, arguments)
