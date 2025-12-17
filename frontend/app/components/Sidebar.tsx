@@ -49,6 +49,16 @@ export default function Sidebar() {
             >
               Google Drive
             </Link>
+            <Link 
+              href="/connectors/github" 
+              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors ml-2 ${
+                isActive("/connectors/github") 
+                  ? "bg-blue-50 text-blue-700" 
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              GitHub
+            </Link>
           </div>
         </div>
       </nav>

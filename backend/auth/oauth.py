@@ -51,6 +51,9 @@ def get_google_auth_url(username: str):
     return authorization_url
 
 def get_github_auth_url(username: str):
+    if not GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="GITHUB_CLIENT_ID not configured")
+        
     params = {
         "client_id": GITHUB_CLIENT_ID,
         "redirect_uri": GITHUB_REDIRECT_URI,
