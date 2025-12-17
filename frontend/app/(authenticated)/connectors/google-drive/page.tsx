@@ -7,12 +7,16 @@ interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
+  modifiedTime?: string;
 }
 
 interface Breadcrumb {
   id: string;
   name: string;
 }
+
+type SortField = 'name' | 'modifiedTime';
+type SortOrder = 'asc' | 'desc';
 
 export default function GoogleDriveConnectorPage() {
   const [user, setUser] = useState<string | null>(null);
@@ -22,6 +26,8 @@ export default function GoogleDriveConnectorPage() {
   const [currentFolder, setCurrentFolder] = useState<string>("root");
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: "root", name: "My Drive" }]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const router = useRouter();
 
   useEffect(() => {
@@ -58,25 +64,42 @@ export default function GoogleDriveConnectorPage() {
   const fetchFiles = async (username: string, folderId: string) => {
     setLoading(true);
     try {
+      const orderBy = sortField === 'name' 
+        ? `folder,name ${sortOrder === 'desc' ? 'desc' : ''}`.trim()
+        : `folder,modifiedTime ${sortOrder === 'desc' ? 'desc' : ''}`.trim();
+
+      const args: any = { 
+        folder_id: folderId,
+        order_by: orderBy
+      };
+      
       const res = await fetch("http://localhost:8000/mcp/google-drive/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username,
           tool_name: "list_files",
-          arguments: { folder_id: folderId }
+          arguments: args
         })
       });
       const data = await res.json();
       try {
-        const parsedFiles = JSON.parse(data.response);
-        if (Array.isArray(parsedFiles)) {
-          setFiles(parsedFiles);
+        // Check if response is an error string
+        if (typeof data.response === 'string' && data.response.startsWith('Error')) {
+          console.error("MCP Error:", data.response);
+          setFiles([]);
+          return;
+        }
+
+        const parsedResponse = JSON.parse(data.response);
+        if (Array.isArray(parsedResponse)) {
+          setFiles(parsedResponse);
         } else {
           setFiles([]);
         }
       } catch (e) {
-        console.error("Failed to parse files", e);
+        console.error("Failed to parse files response", e);
+        console.log("Raw response:", data.response);
         setFiles([]);
       }
     } catch (error) {
@@ -124,8 +147,20 @@ export default function GoogleDriveConnectorPage() {
     if (user) fetchFiles(user, targetFolder.id);
   };
 
+  const handleSort = (field: SortField) => {
+    const newOrder = field === sortField && sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortOrder(newOrder);
+  };
+
+  useEffect(() => {
+    if (user && connected) {
+      fetchFiles(user, currentFolder);
+    }
+  }, [sortField, sortOrder]);
+
   const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!user) return;
     if (!searchQuery.trim()) {
       fetchFiles(user, currentFolder);
@@ -134,25 +169,40 @@ export default function GoogleDriveConnectorPage() {
 
     setLoading(true);
     try {
+      const args: any = { 
+        query: `name contains '${searchQuery}' and trashed = false`,
+        order_by: sortField === 'name' 
+          ? `folder,name ${sortOrder === 'desc' ? 'desc' : ''}`.trim()
+          : `folder,modifiedTime ${sortOrder === 'desc' ? 'desc' : ''}`.trim()
+      };
+      
       const res = await fetch("http://localhost:8000/mcp/google-drive/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: user,
           tool_name: "search_files",
-          arguments: { query: `name contains '${searchQuery}' and trashed = false` }
+          arguments: args
         })
       });
       const data = await res.json();
       try {
-        const parsedFiles = JSON.parse(data.response);
-        if (Array.isArray(parsedFiles)) {
-          setFiles(parsedFiles);
+        // Check if response is an error string
+        if (typeof data.response === 'string' && data.response.startsWith('Error')) {
+          console.error("MCP Error:", data.response);
+          setFiles([]);
+          return;
+        }
+
+        const parsedResponse = JSON.parse(data.response);
+        if (Array.isArray(parsedResponse)) {
+          setFiles(parsedResponse);
         } else {
           setFiles([]);
         }
       } catch (e) {
         console.error("Failed to parse search results", e);
+        console.log("Raw response:", data.response);
         setFiles([]);
       }
     } catch (error) {
@@ -253,8 +303,19 @@ export default function GoogleDriveConnectorPage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="px-6 py-3 font-medium text-gray-500 w-[70%]">Name</th>
-                      <th className="px-6 py-3 font-medium text-gray-500 w-[30%]">Type</th>
+                      <th 
+                        className="px-6 py-3 font-medium text-gray-500 w-[50%] cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort('name')}
+                      >
+                        Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-3 font-medium text-gray-500 w-[20%]">Type</th>
+                      <th 
+                        className="px-6 py-3 font-medium text-gray-500 w-[30%] cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort('modifiedTime')}
+                      >
+                        Date Modified {sortField === 'modifiedTime' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -279,10 +340,20 @@ export default function GoogleDriveConnectorPage() {
                         <td className="px-6 py-3 text-gray-500 truncate max-w-[200px]" title={file.mimeType}>
                           {file.mimeType.split('.').pop()?.split('-').pop()}
                         </td>
+                        <td className="px-6 py-3 text-gray-500">
+                          {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : '-'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                
+                {/* Pagination Controls Removed */}
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                  <div className="text-sm text-gray-500">
+                    Showing {files.length} items
+                  </div>
+                </div>
               </div>
             )}
           </div>

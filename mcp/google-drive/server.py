@@ -13,48 +13,77 @@ import json
 # ... imports ...
 
 @mcp.tool()
-def list_files(token: str, folder_id: str = 'root', page_size: int = 10) -> str:
+def list_files(token: str, folder_id: str = 'root', order_by: str = 'folder,name') -> str:
     """
-    List files from Google Drive. Returns a JSON string.
+    List ALL files from a Google Drive folder. Returns a JSON string.
     
     Args:
         token: The OAuth2 access token for the user.
         folder_id: The ID of the folder to list files from (default: 'root').
-        page_size: Number of files to return.
+        order_by: Sort order (e.g., 'folder,name', 'modifiedTime desc').
     """
     try:
-        # Create credentials object from token
         creds = Credentials(token=token)
         service = build('drive', 'v3', credentials=creds)
 
-        # Call the Drive v3 API
-        q = f"'{folder_id}' in parents and trashed = false"
-        results = service.files().list(
-            q=q, pageSize=page_size, fields="nextPageToken, files(id, name, mimeType)").execute()
-        items = results.get('files', [])
-
-        return json.dumps(items)
+        all_files = []
+        page_token = None
+        
+        while True:
+            q = f"'{folder_id}' in parents and trashed = false"
+            results = service.files().list(
+                q=q, 
+                pageSize=1000, 
+                pageToken=page_token,
+                orderBy=order_by,
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime)"
+            ).execute()
+            
+            files = results.get('files', [])
+            all_files.extend(files)
+            
+            page_token = results.get('nextPageToken')
+            if not page_token:
+                break
+        
+        return json.dumps(all_files)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
 @mcp.tool()
-def search_files(token: str, query: str) -> str:
+def search_files(token: str, query: str, order_by: str = 'folder,name') -> str:
     """
-    Search for files in Google Drive using a query string. Returns a JSON string.
+    Search for ALL matching files in Google Drive. Returns a JSON string.
     
     Args:
         token: The OAuth2 access token for the user.
         query: The search query (e.g., "name contains 'report'").
+        order_by: Sort order.
     """
     try:
         creds = Credentials(token=token)
         service = build('drive', 'v3', credentials=creds)
 
-        results = service.files().list(
-            q=query, pageSize=10, fields="nextPageToken, files(id, name, mimeType)").execute()
-        items = results.get('files', [])
+        all_files = []
+        page_token = None
 
-        return json.dumps(items)
+        while True:
+            results = service.files().list(
+                q=query, 
+                pageSize=1000, 
+                pageToken=page_token,
+                orderBy=order_by,
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime)"
+            ).execute()
+            
+            files = results.get('files', [])
+            all_files.extend(files)
+            
+            page_token = results.get('nextPageToken')
+            if not page_token:
+                break
+        
+        return json.dumps(all_files)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
