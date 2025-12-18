@@ -98,6 +98,62 @@ def list_issues(token: str, repo_full_name: str, state: str = "open") -> str:
         return json.dumps({"error": str(e)})
 
 @mcp.tool()
+def list_branches(token: str, repo_full_name: str) -> str:
+    """
+    List branches for a specific repository. Returns a JSON string.
+    
+    Args:
+        token: The GitHub Personal Access Token or OAuth token.
+        repo_full_name: The full name of the repository (e.g., "owner/repo").
+    """
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_full_name)
+        branches = []
+        for branch in repo.get_branches():
+            branches.append({
+                "name": branch.name,
+                "commit_sha": branch.commit.sha,
+                "protected": branch.protected
+            })
+            if len(branches) >= 50:
+                break
+        return json.dumps(branches)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+def list_pull_requests(token: str, repo_full_name: str, state: str = "open") -> str:
+    """
+    List pull requests for a specific repository. Returns a JSON string.
+    
+    Args:
+        token: The GitHub Personal Access Token or OAuth token.
+        repo_full_name: The full name of the repository (e.g., "owner/repo").
+        state: State of the PRs to return (open, closed, all).
+    """
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_full_name)
+        prs = []
+        for pr in repo.get_pulls(state=state):
+            prs.append({
+                "number": pr.number,
+                "title": pr.title,
+                "state": pr.state,
+                "html_url": pr.html_url,
+                "created_at": str(pr.created_at),
+                "user": pr.user.login if pr.user else None,
+                "head_branch": pr.head.ref,
+                "base_branch": pr.base.ref
+            })
+            if len(prs) >= 50:
+                break
+        return json.dumps(prs)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
 def get_file_content(token: str, repo_full_name: str, file_path: str, ref: str = None) -> str:
     """
     Get the content of a file in a repository. Returns the decoded content as a string.
