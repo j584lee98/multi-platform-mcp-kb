@@ -75,5 +75,89 @@ def get_channel_history(token: str, channel_id: str, limit: int = 50) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)})
 
+@mcp.tool()
+def get_thread_replies(token: str, channel_id: str, thread_ts: str) -> str:
+    """
+    Fetch replies from a specific message thread.
+    
+    Args:
+        token: The Slack Bot User OAuth Token.
+        channel_id: The ID of the channel containing the thread.
+        thread_ts: The timestamp of the parent message.
+    """
+    try:
+        client = WebClient(token=token)
+        response = client.conversations_replies(channel=channel_id, ts=thread_ts)
+        messages = []
+        for msg in response["messages"]:
+            messages.append({
+                "ts": msg.get("ts"),
+                "user": msg.get("user"),
+                "text": msg.get("text"),
+                "type": msg.get("type"),
+                "thread_ts": msg.get("thread_ts")
+            })
+        return json.dumps(messages)
+    except SlackApiError as e:
+        return json.dumps({"error": f"Slack API Error: {e.response['error']}"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+def search_messages(token: str, query: str, count: int = 20) -> str:
+    """
+    Search for messages matching a query.
+    
+    Args:
+        token: The Slack User OAuth Token.
+        query: The search query.
+        count: Number of results to return.
+    """
+    try:
+        client = WebClient(token=token)
+        response = client.search_messages(query=query, count=count)
+        matches = []
+        for match in response["messages"]["matches"]:
+            matches.append({
+                "ts": match.get("ts"),
+                "user": match.get("user"),
+                "username": match.get("username"),
+                "text": match.get("text"),
+                "channel": match.get("channel", {}).get("name"),
+                "permalink": match.get("permalink")
+            })
+        return json.dumps(matches)
+    except SlackApiError as e:
+        return json.dumps({"error": f"Slack API Error: {e.response['error']}"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+def list_users(token: str) -> str:
+    """
+    List all users in the workspace to map IDs to names.
+    
+    Args:
+        token: The Slack Bot User OAuth Token.
+    """
+    try:
+        client = WebClient(token=token)
+        response = client.users_list()
+        users = []
+        for user in response["members"]:
+            if user.get("deleted"):
+                continue
+            users.append({
+                "id": user["id"],
+                "name": user.get("name"),
+                "real_name": user.get("real_name"),
+                "is_bot": user.get("is_bot")
+            })
+        return json.dumps(users)
+    except SlackApiError as e:
+        return json.dumps({"error": f"Slack API Error: {e.response['error']}"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
 if __name__ == "__main__":
     mcp.run(transport="sse")
