@@ -59,6 +59,16 @@ export default function Sidebar() {
             >
               GitHub
             </Link>
+            <Link 
+              href="/connectors/slack" 
+              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors ml-2 ${
+                isActive("/connectors/slack") 
+                  ? "bg-blue-50 text-blue-700" 
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Slack
+            </Link>
           </div>
         </div>
       </nav>
