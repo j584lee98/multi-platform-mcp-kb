@@ -39,7 +39,7 @@ def list_files(token: str, folder_id: str = 'root', order_by: str = 'folder,name
                 pageSize=1000, 
                 pageToken=page_token,
                 orderBy=order_by,
-                fields="nextPageToken, files(id, name, mimeType, modifiedTime)"
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, description)"
             ).execute()
             
             files = results.get('files', [])
@@ -60,7 +60,8 @@ def search_files(token: str, query: str, order_by: str = 'folder,name') -> str:
     
     Args:
         token: The OAuth2 access token for the user.
-        query: The search query (e.g., "name contains 'report'").
+        query: The search query (e.g., "name contains 'report'", "fullText contains 'budget'").
+               Note: 'trashed = false' is automatically appended to the query.
         order_by: Sort order.
     """
     try:
@@ -69,6 +70,10 @@ def search_files(token: str, query: str, order_by: str = 'folder,name') -> str:
 
         all_files = []
         page_token = None
+        
+        # Enforce trashed = false if not present
+        if "trashed" not in query:
+            query = f"({query}) and trashed = false"
 
         while True:
             results = service.files().list(
@@ -76,7 +81,7 @@ def search_files(token: str, query: str, order_by: str = 'folder,name') -> str:
                 pageSize=1000, 
                 pageToken=page_token,
                 orderBy=order_by,
-                fields="nextPageToken, files(id, name, mimeType, modifiedTime)"
+                fields="nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, description)"
             ).execute()
             
             files = results.get('files', [])

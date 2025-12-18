@@ -8,6 +8,9 @@ interface DriveFile {
   name: string;
   mimeType: string;
   modifiedTime?: string;
+  size?: string;
+  webViewLink?: string;
+  description?: string;
 }
 
 interface Breadcrumb {
@@ -28,9 +31,6 @@ export default function GoogleDriveConnectorPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewingFile, setViewingFile] = useState<DriveFile | null>(null);
-  const [fileContent, setFileContent] = useState<string>("");
-  const [loadingContent, setLoadingContent] = useState<boolean>(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -161,58 +161,6 @@ export default function GoogleDriveConnectorPage() {
       fetchFiles(user, currentFolder);
     }
   }, [sortField, sortOrder]);
-
-  const handleFileClick = async (file: DriveFile) => {
-    // Check if file type is supported
-    const supportedTypes = [
-      'application/vnd.google-apps.document', // Google Doc
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-      'text/plain',
-      'application/json',
-      'text/csv',
-      'text/javascript',
-      'text/html',
-      'text/css',
-      'text/markdown'
-    ];
-    
-    // Also allow if mimeType starts with text/
-    if (!supportedTypes.includes(file.mimeType) && !file.mimeType.startsWith('text/')) {
-      alert("Preview not supported for this file type.");
-      return;
-    }
-
-    setViewingFile(file);
-    setLoadingContent(true);
-    setFileContent("");
-
-    try {
-      const res = await fetch("http://localhost:8000/mcp/google-drive/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: user,
-          tool_name: "read_file_content",
-          arguments: { file_id: file.id }
-        })
-      });
-      const data = await res.json();
-      setFileContent(data.response);
-    } catch (error) {
-      console.error("Failed to read file content", error);
-      setFileContent("Error reading file content.");
-    } finally {
-      setLoadingContent(false);
-    }
-  };
-
-  const closeFileViewer = () => {
-    setViewingFile(null);
-    setFileContent("");
-  };
 
   const handleSearch = async (e: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -359,12 +307,13 @@ export default function GoogleDriveConnectorPage() {
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50">
                       <th 
-                        className="px-6 py-3 font-medium text-gray-500 w-[50%] cursor-pointer hover:text-gray-700"
+                        className="px-6 py-3 font-medium text-gray-500 w-[40%] cursor-pointer hover:text-gray-700"
                         onClick={() => handleSort('name')}
                       >
                         Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th className="px-6 py-3 font-medium text-gray-500 w-[20%]">Type</th>
+                      <th className="px-6 py-3 font-medium text-gray-500 w-[15%]">Size</th>
+                      <th className="px-6 py-3 font-medium text-gray-500 w-[15%]">Type</th>
                       <th 
                         className="px-6 py-3 font-medium text-gray-500 w-[30%] cursor-pointer hover:text-gray-700"
                         onClick={() => handleSort('modifiedTime')}
@@ -387,13 +336,16 @@ export default function GoogleDriveConnectorPage() {
                             </div>
                           ) : (
                             <div 
-                              onClick={() => handleFileClick(file)}
+                              onClick={() => file.webViewLink && window.open(file.webViewLink, '_blank')}
                               className="flex items-center gap-3 text-gray-700 cursor-pointer hover:text-blue-600"
                             >
                               <span className="text-xl">📄</span>
                               {file.name}
                             </div>
                           )}
+                        </td>
+                        <td className="px-6 py-3 text-gray-500 text-xs">
+                          {file.size ? (parseInt(file.size) / 1024 / 1024).toFixed(2) + ' MB' : '-'}
                         </td>
                         <td className="px-6 py-3 text-gray-500 truncate max-w-[200px]" title={file.mimeType}>
                           {file.mimeType.split('.').pop()?.split('-').pop()}
@@ -414,36 +366,6 @@ export default function GoogleDriveConnectorPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* File Viewer Modal */}
-      {viewingFile && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={closeFileViewer}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-xl">📄</span>
-                {viewingFile.name}
-              </h3>
-            </div>
-            <div className="p-6 overflow-auto flex-1 bg-white font-mono text-sm text-gray-900">
-              {loadingContent ? (
-                <div className="flex flex-col items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                  <p className="text-gray-500">Loading content...</p>
-                </div>
-              ) : (
-                <pre className="whitespace-pre-wrap">{fileContent}</pre>
-              )}
-            </div>
           </div>
         </div>
       )}
