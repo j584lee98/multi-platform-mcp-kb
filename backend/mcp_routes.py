@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from database import get_db
 from models import User, OAuthToken
-from mcp_client import call_google_drive_tool, call_github_tool
+from mcp_client import call_google_drive_tool, call_github_tool, call_slack_tool
 from auth.oauth import refresh_google_token
 from pydantic import BaseModel
 from typing import Dict, Any
@@ -63,5 +63,29 @@ async def execute_github_tool(request: MCPToolRequest, db: AsyncSession = Depend
     
     # Call MCP
     response = await call_github_tool(request.tool_name, arguments)
+    
+    return {"response": response}
+
+@router.post("/slack/execute")
+async def execute_slack_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_db)):
+    # Get user
+    result = await db.execute(select(User).where(User.username == request.username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get Slack Token
+    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "slack"))
+    token_record = result.scalars().first()
+    
+    if not token_record:
+        raise HTTPException(status_code=400, detail="Slack not connected")
+        
+    # Inject token into arguments
+    arguments = request.arguments.copy()
+    arguments["token"] = token_record.access_token
+    
+    # Call MCP
+    response = await call_slack_tool(request.tool_name, arguments)
     
     return {"response": response}
