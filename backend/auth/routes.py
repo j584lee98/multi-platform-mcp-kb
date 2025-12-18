@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from database import get_db
 from models import User, OAuthToken
 from .services import register_user, authenticate_user
-from .oauth import get_google_auth_url, handle_google_callback, get_github_auth_url, handle_github_callback
+from .oauth import get_google_auth_url, handle_google_callback, get_github_auth_url, handle_github_callback, get_slack_auth_url, handle_slack_callback
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -97,6 +97,45 @@ async def github_disconnect(username: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     
     result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "github"))
+    token = result.scalars().first()
+    
+    if token:
+        await db.delete(token)
+        await db.commit()
+        
+    return {"msg": "Disconnected successfully"}
+
+# Slack Routes
+@router.get("/slack/login")
+def slack_login(username: str):
+    auth_url = get_slack_auth_url(username)
+    return {"url": auth_url}
+
+@router.get("/slack/callback")
+async def slack_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    await handle_slack_callback(request, db)
+    return RedirectResponse(url="http://localhost:3000/connectors/slack")
+
+@router.get("/slack/status")
+async def slack_status(username: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "slack"))
+    token = result.scalars().first()
+    
+    return {"connected": token is not None}
+
+@router.delete("/slack/disconnect")
+async def slack_disconnect(username: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "slack"))
     token = result.scalars().first()
     
     if token:
