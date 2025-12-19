@@ -12,7 +12,7 @@ async def run_agent(data: AgentRequest):
     try:
         agent_executor = await create_mcp_agent()
         result = await agent_executor.ainvoke({"input": data.query})
-        return {"response": result["output"]}
+        return {"response": result["messages"][-1].content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
