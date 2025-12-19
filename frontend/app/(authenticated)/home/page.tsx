@@ -1,24 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
-export default function HomePage() {
-  const [user, setUser] = useState<string | null>(null);
-  const router = useRouter();
+function getUsernameFromStoredAuth(): string | null {
+  if (typeof window === "undefined") return null;
 
-  useEffect(() => {
-    const auth = localStorage.getItem("auth");
-    if (!auth) {
-      router.push("/login");
-      return;
-    }
+  const auth = localStorage.getItem("auth");
+  if (!auth) return null;
 
-    // Decode username from stored auth
+  try {
     const decoded = atob(auth);
     const username = decoded.split(":")[0];
-    setUser(username);
-  }, [router]);
+    return username || null;
+  } catch {
+    return null;
+  }
+}
+
+function subscribeToAuthChanges(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("auth", onStoreChange as EventListener);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("auth", onStoreChange as EventListener);
+  };
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const user = useSyncExternalStore(
+    subscribeToAuthChanges,
+    getUsernameFromStoredAuth,
+    () => null
+  );
+  const isHydrated = useSyncExternalStore(
+    subscribeToAuthChanges,
+    () => true,
+    () => false
+  );
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [isHydrated, router, user]);
 
   if (!user) {
     return <p>Loading...</p>;

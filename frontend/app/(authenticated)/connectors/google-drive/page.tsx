@@ -1,7 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+
+function getUsernameFromStoredAuth(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const auth = localStorage.getItem("auth");
+  if (!auth) return null;
+
+  try {
+    const decoded = atob(auth);
+    const username = decoded.split(":")[0];
+    return username || null;
+  } catch {
+    return null;
+  }
+}
+
+function subscribeToAuthChanges(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("auth", onStoreChange as EventListener);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("auth", onStoreChange as EventListener);
+  };
+}
 
 interface DriveFile {
   id: string;
@@ -22,7 +49,16 @@ type SortField = 'name' | 'modifiedTime';
 type SortOrder = 'asc' | 'desc';
 
 export default function GoogleDriveConnectorPage() {
-  const [user, setUser] = useState<string | null>(null);
+  const user = useSyncExternalStore(
+    subscribeToAuthChanges,
+    getUsernameFromStoredAuth,
+    () => null
+  );
+  const isHydrated = useSyncExternalStore(
+    subscribeToAuthChanges,
+    () => true,
+    () => false
+  );
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -33,45 +69,14 @@ export default function GoogleDriveConnectorPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const router = useRouter();
 
-  useEffect(() => {
-    const auth = localStorage.getItem("auth");
-    if (!auth) {
-      router.push("/login");
-      return;
-    }
-
-    // Decode username from stored auth
-    const decoded = atob(auth);
-    const username = decoded.split(":")[0];
-    setUser(username);
-
-    // Check connection status
-    checkStatus(username);
-  }, [router]);
-
-  const checkStatus = async (username: string) => {
-    try {
-      const res = await fetch(`http://localhost:8000/auth/google/status?username=${username}`);
-      const data = await res.json();
-      setConnected(data.connected);
-      if (data.connected) {
-        fetchFiles(username, "root");
-      }
-    } catch (error) {
-      console.error("Failed to check status", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFiles = async (username: string, folderId: string) => {
+  const fetchFiles = useCallback(async (username: string, folderId: string) => {
     setLoading(true);
     try {
       const orderBy = sortField === 'name' 
         ? `folder,name ${sortOrder === 'desc' ? 'desc' : ''}`.trim()
         : `folder,modifiedTime ${sortOrder === 'desc' ? 'desc' : ''}`.trim();
 
-      const args: any = { 
+      const args = { 
         folder_id: folderId,
         order_by: orderBy
       };
@@ -110,7 +115,33 @@ export default function GoogleDriveConnectorPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortField, sortOrder]);
+
+  const checkStatus = useCallback(async (username: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/auth/google/status?username=${username}`);
+      const data = await res.json();
+      setConnected(data.connected);
+      if (data.connected) {
+        fetchFiles(username, "root");
+      }
+    } catch (error) {
+      console.error("Failed to check status", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchFiles]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    checkStatus(user);
+  }, [checkStatus, isHydrated, router, user]);
 
   const handleConnect = async () => {
     try {
@@ -160,7 +191,7 @@ export default function GoogleDriveConnectorPage() {
     if (user && connected) {
       fetchFiles(user, currentFolder);
     }
-  }, [sortField, sortOrder]);
+  }, [connected, currentFolder, fetchFiles, user]);
 
   const handleSearch = async (e: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -172,7 +203,7 @@ export default function GoogleDriveConnectorPage() {
 
     setLoading(true);
     try {
-      const args: any = { 
+      const args = { 
         query: `name contains '${searchQuery}' and trashed = false`,
         order_by: sortField === 'name' 
           ? `folder,name ${sortOrder === 'desc' ? 'desc' : ''}`.trim()
@@ -228,6 +259,7 @@ export default function GoogleDriveConnectorPage() {
       {/* Connection Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 mb-8 flex flex-col items-center justify-center text-center">
         <div className="p-4 bg-blue-50 rounded-full mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-12 h-12" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Google Drive</h1>

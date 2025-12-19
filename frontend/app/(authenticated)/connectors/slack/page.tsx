@@ -1,7 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+
+function getUsernameFromStoredAuth(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const auth = localStorage.getItem("auth");
+  if (!auth) return null;
+
+  try {
+    const decoded = atob(auth);
+    const username = decoded.split(":")[0];
+    return username || null;
+  } catch {
+    return null;
+  }
+}
+
+function subscribeToAuthChanges(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("auth", onStoreChange as EventListener);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("auth", onStoreChange as EventListener);
+  };
+}
 
 interface Channel {
   id: string;
@@ -23,7 +50,16 @@ interface Message {
 }
 
 export default function SlackConnectorPage() {
-  const [user, setUser] = useState<string | null>(null);
+  const user = useSyncExternalStore(
+    subscribeToAuthChanges,
+    getUsernameFromStoredAuth,
+    () => null
+  );
+  const isHydrated = useSyncExternalStore(
+    subscribeToAuthChanges,
+    () => true,
+    () => false
+  );
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -31,38 +67,7 @@ export default function SlackConnectorPage() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const auth = localStorage.getItem("auth");
-    if (!auth) {
-      router.push("/login");
-      return;
-    }
-
-    // Decode username from stored auth
-    const decoded = atob(auth);
-    const username = decoded.split(":")[0];
-    setUser(username);
-
-    // Check connection status
-    checkStatus(username);
-  }, [router]);
-
-  const checkStatus = async (username: string) => {
-    try {
-      const res = await fetch(`http://localhost:8000/auth/slack/status?username=${username}`);
-      const data = await res.json();
-      setConnected(data.connected);
-      if (data.connected) {
-        fetchChannels(username);
-      }
-    } catch (error) {
-      console.error("Failed to check status", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchChannels = async (username: string) => {
+  const fetchChannels = useCallback(async (username: string) => {
     setLoading(true);
     try {
       const res = await fetch("http://localhost:8000/mcp/slack/execute", {
@@ -97,7 +102,33 @@ export default function SlackConnectorPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const checkStatus = useCallback(async (username: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/auth/slack/status?username=${username}`);
+      const data = await res.json();
+      setConnected(data.connected);
+      if (data.connected) {
+        fetchChannels(username);
+      }
+    } catch (error) {
+      console.error("Failed to check status", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchChannels]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    checkStatus(user);
+  }, [checkStatus, isHydrated, router, user]);
 
   const fetchHistory = async (channelId: string) => {
     if (!user) return;
@@ -187,6 +218,7 @@ export default function SlackConnectorPage() {
       {/* Connection Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 mb-8 flex flex-col items-center justify-center text-center">
         <div className="p-4 bg-purple-50 rounded-full mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="https://www.svgrepo.com/show/448248/slack.svg" alt="Slack" className="w-12 h-12" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Slack</h1>
