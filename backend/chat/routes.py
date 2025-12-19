@@ -1,38 +1,18 @@
-from database import get_db
-from fastapi import APIRouter, Depends, HTTPException
-from mcp_client import list_google_drive_files
-from models import OAuthToken, User
+from fastapi import APIRouter, HTTPException
+from mcp_agent import create_mcp_agent
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-class QueryRequest(BaseModel):
-    username: str
+class AgentRequest(BaseModel):
+    query: str
 
-@router.post("/list-files")
-async def list_files(data: QueryRequest, db: AsyncSession = Depends(get_db)):
-    # Get user
-    result = await db.execute(select(User).where(User.username == data.username))
-    user = result.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get Google Token
-    result = await db.execute(
-        select(OAuthToken).where(
-            OAuthToken.user_id == user.id,
-            OAuthToken.provider == "google",
-        )
-    )
-    token_record = result.scalars().first()
-    
-    if not token_record:
-        raise HTTPException(status_code=400, detail="Google Drive not connected")
-        
-    # Call MCP
-    # Note: In production, we should handle token refresh here if expired
-    response = await list_google_drive_files(token_record.access_token)
-    
-    return {"response": response}
+@router.post("/agent")
+async def run_agent(data: AgentRequest):
+    try:
+        agent_executor = await create_mcp_agent()
+        result = await agent_executor.ainvoke({"input": data.query})
+        return {"response": result["output"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

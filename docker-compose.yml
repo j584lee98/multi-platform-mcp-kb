@@ -20,19 +20,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://user:password@db/mcpkb
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
-      - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
-      - OAUTHLIB_INSECURE_TRANSPORT=1
-      - OAUTHLIB_RELAX_TOKEN_SCOPE=1
-      - MCP_GOOGLE_DRIVE_URL=http://mcp-google-drive:8080/sse
-      - MCP_GITHUB_URL=http://mcp-github:8080/sse
-      - MCP_SLACK_URL=http://mcp-slack:8080/sse
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
