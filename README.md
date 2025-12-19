@@ -90,6 +90,21 @@ A full-stack application integrating Model Context Protocol (MCP) servers with a
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000/docs
 
+## Development
+
+We provide a `Makefile` to simplify common tasks. For detailed guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+```bash
+# Start the application
+make up
+
+# Run linters (Ruff for Python, ESLint for Next.js)
+make lint
+
+# Run backend tests
+make test
+```
+
 ## MCP Integration
 
 The project uses the Model Context Protocol to standardize how the backend communicates with external services. Each service (Google Drive, GitHub, Slack) runs as an independent MCP server container. The backend acts as an MCP Client, connecting to these servers via SSE (Server-Sent Events) to execute tools.
