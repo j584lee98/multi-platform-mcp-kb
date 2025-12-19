@@ -1,11 +1,12 @@
+import datetime
 import os
-from google_auth_oauthlib.flow import Flow
+
+import httpx
 from fastapi import HTTPException, Request
+from google_auth_oauthlib.flow import Flow
+from models import OAuthToken, User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from models import OAuthToken, User
-import datetime
-import httpx
 
 # Allow OAuth over HTTP for development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -74,7 +75,19 @@ def get_slack_auth_url(username: str):
         raise HTTPException(status_code=500, detail="SLACK_CLIENT_ID not configured")
         
     # User scopes for reading channels, groups, IMs, MPIMs and their history
-    scopes = "channels:read,groups:read,im:read,mpim:read,channels:history,groups:history,im:history,mpim:history,users:read"
+    scopes = ",".join(
+        [
+            "channels:read",
+            "groups:read",
+            "im:read",
+            "mpim:read",
+            "channels:history",
+            "groups:history",
+            "im:history",
+            "mpim:history",
+            "users:read",
+        ]
+    )
     
     params = {
         "client_id": SLACK_CLIENT_ID,
@@ -107,7 +120,12 @@ async def handle_google_callback(request: Request, db: AsyncSession):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if token already exists
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "google"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "google",
+        )
+    )
     existing_token = result.scalars().first()
 
     if existing_token:
@@ -151,15 +169,19 @@ async def handle_github_callback(request: Request, db: AsyncSession):
         )
         
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to retrieve token from GitHub")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to retrieve token from GitHub",
+        )
         
     token_data = response.json()
     if "error" in token_data:
         raise HTTPException(status_code=400, detail=token_data["error_description"])
         
     access_token = token_data["access_token"]
-    # GitHub tokens don't typically expire in the same way as Google's unless configured, 
-    # and refresh tokens are for GitHub Apps, not OAuth Apps usually (though they can be).
+    # GitHub tokens don't typically expire in the same way as Google's
+    # unless configured.
+    # Refresh tokens are for GitHub Apps, not OAuth Apps usually (though they can be).
     # For simplicity, we'll just store the access token.
     
     # Find the user
@@ -169,7 +191,12 @@ async def handle_github_callback(request: Request, db: AsyncSession):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if token already exists
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "github"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "github",
+        )
+    )
     existing_token = result.scalars().first()
 
     if existing_token:
@@ -208,11 +235,17 @@ async def handle_slack_callback(request: Request, db: AsyncSession):
         )
         
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to retrieve token from Slack")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to retrieve token from Slack",
+        )
         
     token_data = response.json()
     if not token_data.get("ok"):
-        raise HTTPException(status_code=400, detail=f"Slack Error: {token_data.get('error')}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Slack Error: {token_data.get('error')}",
+        )
         
     # For user tokens, we look at 'authed_user' -> 'access_token'
     # If we requested bot scopes, we'd look at 'access_token'
@@ -221,7 +254,7 @@ async def handle_slack_callback(request: Request, db: AsyncSession):
     access_token = authed_user.get("access_token")
     
     if not access_token:
-         raise HTTPException(status_code=400, detail="No user access token returned")
+        raise HTTPException(status_code=400, detail="No user access token returned")
 
     # Find the user
     result = await db.execute(select(User).where(User.username == state))
@@ -230,7 +263,12 @@ async def handle_slack_callback(request: Request, db: AsyncSession):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if token already exists
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "slack"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "slack",
+        )
+    )
     existing_token = result.scalars().first()
 
     if existing_token:
@@ -258,7 +296,8 @@ async def refresh_google_token(token_record: OAuthToken, db: AsyncSession):
         return token_record.access_token
     
     # Check if expired (with 5 minute buffer)
-    # Note: expires_at might be None if not set initially, though it should be for Google
+    # Note: expires_at might be None if not set initially,
+    # though it should be for Google.
     if token_record.expires_at:
         # Ensure we're comparing compatible datetimes (naive vs aware)
         # Assuming expires_at is stored as naive UTC in DB
@@ -282,7 +321,9 @@ async def refresh_google_token(token_record: OAuthToken, db: AsyncSession):
         token_record.access_token = data["access_token"]
         # Calculate new expiry
         expires_in = data.get("expires_in", 3600)
-        token_record.expires_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)
+        token_record.expires_at = datetime.datetime.utcnow() + datetime.timedelta(
+            seconds=expires_in
+        )
         
         await db.commit()
         return token_record.access_token

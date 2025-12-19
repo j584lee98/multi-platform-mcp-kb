@@ -1,12 +1,13 @@
+from typing import Any, Dict
+
+from auth.oauth import refresh_google_token
+from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
+from mcp_client import call_github_tool, call_google_drive_tool, call_slack_tool
+from models import OAuthToken, User
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from database import get_db
-from models import User, OAuthToken
-from mcp_client import call_google_drive_tool, call_github_tool, call_slack_tool
-from auth.oauth import refresh_google_token
-from pydantic import BaseModel
-from typing import Dict, Any
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -24,7 +25,12 @@ async def execute_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=404, detail="User not found")
     
     # Get Google Token
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "google"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "google",
+        )
+    )
     token_record = result.scalars().first()
     
     if not token_record:
@@ -43,7 +49,10 @@ async def execute_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_d
     return {"response": response}
 
 @router.post("/github/execute")
-async def execute_github_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_db)):
+async def execute_github_tool(
+    request: MCPToolRequest,
+    db: AsyncSession = Depends(get_db),
+):
     # Get user
     result = await db.execute(select(User).where(User.username == request.username))
     user = result.scalars().first()
@@ -51,7 +60,12 @@ async def execute_github_tool(request: MCPToolRequest, db: AsyncSession = Depend
         raise HTTPException(status_code=404, detail="User not found")
     
     # Get GitHub Token
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "github"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "github",
+        )
+    )
     token_record = result.scalars().first()
     
     if not token_record:
@@ -67,7 +81,10 @@ async def execute_github_tool(request: MCPToolRequest, db: AsyncSession = Depend
     return {"response": response}
 
 @router.post("/slack/execute")
-async def execute_slack_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_db)):
+async def execute_slack_tool(
+    request: MCPToolRequest,
+    db: AsyncSession = Depends(get_db),
+):
     # Get user
     result = await db.execute(select(User).where(User.username == request.username))
     user = result.scalars().first()
@@ -75,7 +92,12 @@ async def execute_slack_tool(request: MCPToolRequest, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="User not found")
     
     # Get Slack Token
-    result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user.id, OAuthToken.provider == "slack"))
+    result = await db.execute(
+        select(OAuthToken).where(
+            OAuthToken.user_id == user.id,
+            OAuthToken.provider == "slack",
+        )
+    )
     token_record = result.scalars().first()
     
     if not token_record:
