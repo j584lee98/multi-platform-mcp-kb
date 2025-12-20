@@ -19,8 +19,10 @@ async def run_agent(
 ):
     try:
         agent_executor = await create_mcp_agent(user_id=user.id, db=db)
+        thread_id = f"user-{user.id}"
         result = await agent_executor.ainvoke(
-            {"messages": [{"role": "user", "content": data.query}]}
+            {"messages": [{"role": "user", "content": data.query}]},
+            config={"configurable": {"thread_id": thread_id}},
         )
         return {"response": result["messages"][-1].content}
     except Exception as e:

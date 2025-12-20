@@ -6,10 +6,14 @@ from langchain.agents import create_agent
 from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.memory import MemorySaver
 from models import OAuthToken
 from pydantic import BaseModel, create_model
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+
+_CHECKPOINTER = MemorySaver()
 
 
 # Define URLs
@@ -153,5 +157,10 @@ async def create_mcp_agent(*, user_id: int, db: AsyncSession):
         "Never ask the user for OAuth tokens; authentication is handled server-side."
     )
 
-    agent = create_agent(llm, all_tools, system_prompt=prompt)
+    agent = create_agent(
+        llm,
+        all_tools,
+        system_prompt=prompt,
+        checkpointer=_CHECKPOINTER,
+    )
     return agent
