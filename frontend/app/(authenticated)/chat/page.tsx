@@ -31,10 +31,12 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
+      const auth = typeof window !== "undefined" ? localStorage.getItem("auth") : null;
       const res = await fetch("http://localhost:8000/chat/agent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(auth ? { Authorization: `Basic ${auth}` } : {}),
         },
         body: JSON.stringify({ query: userMessage }),
       });
