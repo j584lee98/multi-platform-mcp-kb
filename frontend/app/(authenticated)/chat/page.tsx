@@ -105,12 +105,12 @@ export default function ChatPage() {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  pre: ({ node, ...props }) => (
+                  pre: ({ node: _node, ...props }) => (
                     <div className="overflow-auto w-full my-2 bg-black/10 p-2 rounded-lg">
                       <pre {...props} />
                     </div>
                   ),
-                  code: ({ node, ...props }) => (
+                  code: ({ node: _node, ...props }) => (
                     <code className="bg-black/10 rounded px-1" {...props} />
                   ),
                 }}
