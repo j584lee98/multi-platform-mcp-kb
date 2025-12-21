@@ -8,7 +8,7 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from models import OAuthToken
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, Field, create_model
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -37,26 +37,61 @@ PROVIDER_BY_SERVER: Dict[str, str] = {
 }
 
 
-def _args_schema_without_token(
-    schema: type[BaseModel] | None,
-) -> type[BaseModel] | None:
+def _schema_has_token(schema: Any) -> bool:
+    """Check if a schema (dict or Pydantic model) has a 'token' field."""
     if schema is None:
-        return None
-    if not issubclass(schema, BaseModel):
-        return schema
-    if "token" not in schema.model_fields:
-        return schema
+        return False
+    if isinstance(schema, dict):
+        # JSON schema format: check properties
+        props = schema.get("properties", {})
+        return "token" in props
+    if isinstance(schema, type) and issubclass(schema, BaseModel):
+        return "token" in schema.model_fields
+    return False
 
-    field_definitions = {
-        name: (field_info.annotation, field_info)
-        for name, field_info in schema.model_fields.items()
-        if name != "token"
-    }
-    return create_model(f"{schema.__name__}NoToken", **field_definitions)
+
+def _create_pydantic_model_from_json_schema(
+    schema: dict, name: str, exclude_fields: set = None
+) -> type[BaseModel]:
+    """Convert a JSON schema dict into a Pydantic model, optionally excluding fields."""
+    if exclude_fields is None:
+        exclude_fields = set()
+
+    properties = schema.get("properties", {})
+    required = set(schema.get("required", []))
+
+    field_definitions = {}
+    for field_name, field_info in properties.items():
+        if field_name in exclude_fields:
+            continue
+
+        # Map JSON schema types to Python types
+        json_type = field_info.get("type", "string")
+        type_mapping = {
+            "string": str,
+            "integer": int,
+            "number": float,
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+        }
+        python_type = type_mapping.get(json_type, str)
+
+        default = field_info.get("default", ...)
+        if field_name not in required and default is ...:
+            default = None
+            python_type = Optional[python_type]
+
+        field_definitions[field_name] = (
+            python_type,
+            Field(default=default, description=field_info.get("description", "")),
+        )
+
+    return create_model(name, **field_definitions)
 
 
 def _provider_from_tool_name(tool_name: str) -> Optional[str]:
-    # With tool_name_prefix=True, tools are named like: "google_drive_list_files".
+    """With tool_name_prefix=True, tools are named like: 'google_drive_list_files'."""
     for server, provider in PROVIDER_BY_SERVER.items():
         if tool_name.startswith(f"{server}_"):
             return provider
@@ -80,19 +115,51 @@ async def _load_user_access_tokens(db: AsyncSession, user_id: int) -> Dict[str, 
     return tokens
 
 
+import re
+
+
+def _clean_description(description: str) -> str:
+    """Remove references to 'token' argument from tool description."""
+    if not description:
+        return description
+    # Remove lines that mention 'token:' as a parameter
+    lines = description.split("\n")
+    cleaned_lines = [
+        line for line in lines
+        if not re.match(r"^\s*token:", line, re.IGNORECASE)
+    ]
+    return "\n".join(cleaned_lines)
+
+
 def _wrap_tool_with_db_token(
     tool: BaseTool,
     *,
     provider: str,
     tokens_by_provider: Dict[str, str],
 ) -> BaseTool:
-    # Only wrap tools that have a `token` arg.
-    if not getattr(tool, "args_schema", None) or not issubclass(tool.args_schema, BaseModel):
-        return tool
-    if "token" not in tool.args_schema.model_fields:
+    """Wrap a tool to auto-inject the user's OAuth token, hiding it from the LLM."""
+    schema = getattr(tool, "args_schema", None)
+
+    # Only wrap tools that have a `token` arg
+    if not _schema_has_token(schema):
         return tool
 
-    new_schema = _args_schema_without_token(tool.args_schema)
+    # Build a new schema without the 'token' field
+    if isinstance(schema, dict):
+        new_schema = _create_pydantic_model_from_json_schema(
+            schema, f"{tool.name}Args", exclude_fields={"token"}
+        )
+    else:
+        # Pydantic model - remove token field
+        field_definitions = {
+            name: (field_info.annotation, field_info)
+            for name, field_info in schema.model_fields.items()
+            if name != "token"
+        }
+        new_schema = create_model(f"{schema.__name__}NoToken", **field_definitions)
+
+    # Clean the description to remove token references
+    cleaned_description = _clean_description(tool.description or "")
 
     async def call_with_token(**arguments: Any):
         access_token = tokens_by_provider.get(provider)
@@ -106,11 +173,9 @@ def _wrap_tool_with_db_token(
 
     return StructuredTool(
         name=tool.name,
-        description=tool.description or "",
+        description=cleaned_description,
         args_schema=new_schema,
         coroutine=call_with_token,
-        response_format=getattr(tool, "response_format", None),
-        metadata=getattr(tool, "metadata", None),
     )
 
 
@@ -147,7 +212,7 @@ async def create_mcp_agent(*, user_id: int, db: AsyncSession):
     if not all_tools:
         print("Warning: No tools found from any MCP server.")
 
-    model_name = os.getenv("OPENAI_MODEL")
+    model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
     llm = ChatOpenAI(model=model_name, temperature=0)
 
     prompt = (

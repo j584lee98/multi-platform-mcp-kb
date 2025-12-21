@@ -51,6 +51,7 @@ def get_google_auth_url(username: str):
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
+        prompt='consent',  # Force consent to always get a refresh token
         state=username
     )
     return authorization_url
@@ -291,18 +292,16 @@ async def handle_slack_callback(request: Request, db: AsyncSession):
 async def refresh_google_token(token_record: OAuthToken, db: AsyncSession):
     """
     Refreshes the Google OAuth token if it is expired or close to expiring.
+    Returns a valid access token, or raises an exception if refresh fails.
     """
     if not token_record.refresh_token:
         return token_record.access_token
     
     # Check if expired (with 5 minute buffer)
-    # Note: expires_at might be None if not set initially,
-    # though it should be for Google.
     if token_record.expires_at:
-        # Ensure we're comparing compatible datetimes (naive vs aware)
-        # Assuming expires_at is stored as naive UTC in DB
         now = datetime.datetime.utcnow()
         if token_record.expires_at > now + datetime.timedelta(minutes=5):
+            # Token is still valid
             return token_record.access_token
 
     async with httpx.AsyncClient() as client:
@@ -328,6 +327,5 @@ async def refresh_google_token(token_record: OAuthToken, db: AsyncSession):
         await db.commit()
         return token_record.access_token
     else:
-        print(f"Failed to refresh Google token: {response.text}")
         # Return existing token as fallback, though it likely won't work
         return token_record.access_token
