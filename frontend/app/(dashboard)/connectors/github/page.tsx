@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 function getUsernameFromStoredAuth(): string | null {
   if (typeof window === "undefined") return null;
@@ -16,18 +15,6 @@ function getUsernameFromStoredAuth(): string | null {
   } catch {
     return null;
   }
-}
-
-function subscribeToAuthChanges(onStoreChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("auth", onStoreChange as EventListener);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("auth", onStoreChange as EventListener);
-  };
 }
 
 interface Repo {
@@ -52,16 +39,6 @@ interface Issue {
 type ViewMode = 'repos' | 'issues';
 
 export default function GitHubConnectorPage() {
-  const user = useSyncExternalStore(
-    subscribeToAuthChanges,
-    getUsernameFromStoredAuth,
-    () => null
-  );
-  const isHydrated = useSyncExternalStore(
-    subscribeToAuthChanges,
-    () => true,
-    () => false
-  );
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [repos, setRepos] = useState<Repo[]>([]);
@@ -69,7 +46,6 @@ export default function GitHubConnectorPage() {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('repos');
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const router = useRouter();
 
   const fetchRepos = useCallback(async (username: string) => {
     setLoading(true);
@@ -124,18 +100,15 @@ export default function GitHubConnectorPage() {
   }, [fetchRepos]);
 
   useEffect(() => {
-    if (!isHydrated) return;
-
-    if (!user) {
-      router.replace("/login");
-      return;
+    const user = getUsernameFromStoredAuth();
+    if (user) {
+      checkStatus(user);
     }
-
-    checkStatus(user);
-  }, [checkStatus, isHydrated, router, user]);
+  }, [checkStatus]);
 
   const searchRepos = async (e: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
+    const user = getUsernameFromStoredAuth();
     if (!user) return;
     if (!searchQuery.trim()) {
       fetchRepos(user);
@@ -179,6 +152,7 @@ export default function GitHubConnectorPage() {
   };
 
   const fetchIssues = async (repoFullName: string) => {
+    const user = getUsernameFromStoredAuth();
     if (!user) return;
     setLoading(true);
     setSelectedRepo(repoFullName);
@@ -220,6 +194,7 @@ export default function GitHubConnectorPage() {
   };
 
   const handleConnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       const res = await fetch(`http://localhost:8000/auth/github/login?username=${user}`);
       const data = await res.json();
@@ -232,6 +207,7 @@ export default function GitHubConnectorPage() {
   };
 
   const handleDisconnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       await fetch(`http://localhost:8000/auth/github/disconnect?username=${user}`, {
         method: "DELETE",
@@ -250,14 +226,6 @@ export default function GitHubConnectorPage() {
     setSelectedRepo(null);
     setIssues([]);
   };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-5xl mx-auto p-6">

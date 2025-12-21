@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 function getUsernameFromStoredAuth(): string | null {
   if (typeof window === "undefined") return null;
@@ -16,18 +15,6 @@ function getUsernameFromStoredAuth(): string | null {
   } catch {
     return null;
   }
-}
-
-function subscribeToAuthChanges(onStoreChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("auth", onStoreChange as EventListener);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("auth", onStoreChange as EventListener);
-  };
 }
 
 interface DriveFile {
@@ -49,16 +36,6 @@ type SortField = 'name' | 'modifiedTime';
 type SortOrder = 'asc' | 'desc';
 
 export default function GoogleDriveConnectorPage() {
-  const user = useSyncExternalStore(
-    subscribeToAuthChanges,
-    getUsernameFromStoredAuth,
-    () => null
-  );
-  const isHydrated = useSyncExternalStore(
-    subscribeToAuthChanges,
-    () => true,
-    () => false
-  );
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -67,7 +44,6 @@ export default function GoogleDriveConnectorPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const router = useRouter();
 
   const fetchFiles = useCallback(async (username: string, folderId: string) => {
     setLoading(true);
@@ -133,17 +109,14 @@ export default function GoogleDriveConnectorPage() {
   }, [fetchFiles]);
 
   useEffect(() => {
-    if (!isHydrated) return;
-
-    if (!user) {
-      router.replace("/login");
-      return;
+    const user = getUsernameFromStoredAuth();
+    if (user) {
+      checkStatus(user);
     }
-
-    checkStatus(user);
-  }, [checkStatus, isHydrated, router, user]);
+  }, [checkStatus]);
 
   const handleConnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       const res = await fetch(`http://localhost:8000/auth/google/login?username=${user}`);
       const data = await res.json();
@@ -156,6 +129,7 @@ export default function GoogleDriveConnectorPage() {
   };
 
   const handleDisconnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       await fetch(`http://localhost:8000/auth/google/disconnect?username=${user}`, {
         method: "DELETE",
@@ -168,12 +142,14 @@ export default function GoogleDriveConnectorPage() {
   };
 
   const handleNavigate = (folderId: string, folderName: string) => {
+    const user = getUsernameFromStoredAuth();
     setCurrentFolder(folderId);
     setBreadcrumbs([...breadcrumbs, { id: folderId, name: folderName }]);
     if (user) fetchFiles(user, folderId);
   };
 
   const handleBreadcrumbClick = (index: number) => {
+    const user = getUsernameFromStoredAuth();
     const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
     setBreadcrumbs(newBreadcrumbs);
     const targetFolder = newBreadcrumbs[newBreadcrumbs.length - 1];
@@ -188,13 +164,15 @@ export default function GoogleDriveConnectorPage() {
   };
 
   useEffect(() => {
+    const user = getUsernameFromStoredAuth();
     if (user && connected) {
       fetchFiles(user, currentFolder);
     }
-  }, [connected, currentFolder, fetchFiles, user]);
+  }, [connected, currentFolder, fetchFiles]);
 
   const handleSearch = async (e: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
+    const user = getUsernameFromStoredAuth();
     if (!user) return;
     if (!searchQuery.trim()) {
       fetchFiles(user, currentFolder);
@@ -245,14 +223,6 @@ export default function GoogleDriveConnectorPage() {
       setLoading(false);
     }
   };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-5xl mx-auto p-6">

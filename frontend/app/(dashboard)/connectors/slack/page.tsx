@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 function getUsernameFromStoredAuth(): string | null {
   if (typeof window === "undefined") return null;
@@ -16,18 +15,6 @@ function getUsernameFromStoredAuth(): string | null {
   } catch {
     return null;
   }
-}
-
-function subscribeToAuthChanges(onStoreChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("auth", onStoreChange as EventListener);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("auth", onStoreChange as EventListener);
-  };
 }
 
 interface Channel {
@@ -50,22 +37,11 @@ interface Message {
 }
 
 export default function SlackConnectorPage() {
-  const user = useSyncExternalStore(
-    subscribeToAuthChanges,
-    getUsernameFromStoredAuth,
-    () => null
-  );
-  const isHydrated = useSyncExternalStore(
-    subscribeToAuthChanges,
-    () => true,
-    () => false
-  );
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const router = useRouter();
 
   const fetchChannels = useCallback(async (username: string) => {
     setLoading(true);
@@ -120,17 +96,14 @@ export default function SlackConnectorPage() {
   }, [fetchChannels]);
 
   useEffect(() => {
-    if (!isHydrated) return;
-
-    if (!user) {
-      router.replace("/login");
-      return;
+    const user = getUsernameFromStoredAuth();
+    if (user) {
+      checkStatus(user);
     }
-
-    checkStatus(user);
-  }, [checkStatus, isHydrated, router, user]);
+  }, [checkStatus]);
 
   const fetchHistory = async (channelId: string) => {
+    const user = getUsernameFromStoredAuth();
     if (!user) return;
     setLoading(true);
     
@@ -170,6 +143,7 @@ export default function SlackConnectorPage() {
   };
 
   const handleConnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       const res = await fetch(`http://localhost:8000/auth/slack/login?username=${user}`);
       const data = await res.json();
@@ -182,6 +156,7 @@ export default function SlackConnectorPage() {
   };
 
   const handleDisconnect = async () => {
+    const user = getUsernameFromStoredAuth();
     try {
       await fetch(`http://localhost:8000/auth/slack/disconnect?username=${user}`, {
         method: "DELETE",
@@ -204,14 +179,6 @@ export default function SlackConnectorPage() {
     setSelectedChannel(null);
     setMessages([]);
   };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-5xl mx-auto p-6">

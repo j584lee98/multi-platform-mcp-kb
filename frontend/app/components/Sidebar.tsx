@@ -23,9 +23,9 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-4">
         <div className="px-4 mb-2">
           <Link 
-            href="/home" 
+            href="/" 
             className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              isActive("/home") 
+              isActive("/") 
                 ? "bg-blue-50 text-blue-700" 
                 : "text-gray-700 hover:bg-gray-50"
             }`}
