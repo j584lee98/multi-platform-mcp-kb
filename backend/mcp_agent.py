@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Dict, Optional
 
 from auth.oauth import refresh_google_token
@@ -11,7 +12,6 @@ from models import OAuthToken
 from pydantic import BaseModel, Field, create_model
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
 
 _CHECKPOINTER = MemorySaver()
 
@@ -115,9 +115,6 @@ async def _load_user_access_tokens(db: AsyncSession, user_id: int) -> Dict[str, 
     return tokens
 
 
-import re
-
-
 def _clean_description(description: str) -> str:
     """Remove references to 'token' argument from tool description."""
     if not description:
@@ -165,7 +162,8 @@ def _wrap_tool_with_db_token(
         access_token = tokens_by_provider.get(provider)
         if not access_token:
             raise ToolException(
-                f"{provider} is not connected for this user. Connect it in the Connectors page first."
+                f"{provider} is not connected for this user. "
+                "Connect it in the Connectors page first."
             )
         merged = dict(arguments)
         merged["token"] = access_token
