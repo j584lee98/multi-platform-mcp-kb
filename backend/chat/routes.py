@@ -1,10 +1,11 @@
-from auth.deps import get_current_user
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
 from mcp_agent import create_mcp_agent
 from models import User
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from auth.deps import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -26,5 +27,5 @@ async def run_agent(
         )
         return {"response": result["messages"][-1].content}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 

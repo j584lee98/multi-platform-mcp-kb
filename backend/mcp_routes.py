@@ -1,6 +1,5 @@
-from typing import Any, Dict
+from typing import Any
 
-from auth.oauth import refresh_google_token
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
 from mcp_client import call_github_tool, call_google_drive_tool, call_slack_tool
@@ -9,12 +8,14 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from auth.oauth import refresh_google_token
+
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
 class MCPToolRequest(BaseModel):
     username: str
     tool_name: str
-    arguments: Dict[str, Any] = {}
+    arguments: dict[str, Any] = {}
 
 @router.post("/google-drive/execute")
 async def execute_tool(request: MCPToolRequest, db: AsyncSession = Depends(get_db)):

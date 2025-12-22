@@ -1,8 +1,7 @@
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
-from auth.oauth import refresh_google_token
 from langchain.agents import create_agent
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -12,6 +11,8 @@ from models import OAuthToken
 from pydantic import BaseModel, Field, create_model
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from auth.oauth import refresh_google_token
 
 _CHECKPOINTER = MemorySaver()
 
@@ -30,7 +31,7 @@ SERVER_URLS = {
     "slack": MCP_SLACK_URL,
 }
 
-PROVIDER_BY_SERVER: Dict[str, str] = {
+PROVIDER_BY_SERVER: dict[str, str] = {
     "google_drive": "google",
     "github": "github",
     "slack": "slack",
@@ -80,7 +81,7 @@ def _create_pydantic_model_from_json_schema(
         default = field_info.get("default", ...)
         if field_name not in required and default is ...:
             default = None
-            python_type = Optional[python_type]
+            python_type = python_type | None
 
         field_definitions[field_name] = (
             python_type,
@@ -90,7 +91,7 @@ def _create_pydantic_model_from_json_schema(
     return create_model(name, **field_definitions)
 
 
-def _provider_from_tool_name(tool_name: str) -> Optional[str]:
+def _provider_from_tool_name(tool_name: str) -> str | None:
     """With tool_name_prefix=True, tools are named like: 'google_drive_list_files'."""
     for server, provider in PROVIDER_BY_SERVER.items():
         if tool_name.startswith(f"{server}_"):
@@ -98,12 +99,12 @@ def _provider_from_tool_name(tool_name: str) -> Optional[str]:
     return None
 
 
-async def _load_user_access_tokens(db: AsyncSession, user_id: int) -> Dict[str, str]:
+async def _load_user_access_tokens(db: AsyncSession, user_id: int) -> dict[str, str]:
     result = await db.execute(select(OAuthToken).where(OAuthToken.user_id == user_id))
     records = list(result.scalars().all())
     by_provider = {r.provider: r for r in records}
 
-    tokens: Dict[str, str] = {}
+    tokens: dict[str, str] = {}
     for provider in ("google", "github", "slack"):
         record = by_provider.get(provider)
         if not record:
@@ -132,7 +133,7 @@ def _wrap_tool_with_db_token(
     tool: BaseTool,
     *,
     provider: str,
-    tokens_by_provider: Dict[str, str],
+    tokens_by_provider: dict[str, str],
 ) -> BaseTool:
     """Wrap a tool to auto-inject the user's OAuth token, hiding it from the LLM."""
     schema = getattr(tool, "args_schema", None)
