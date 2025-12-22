@@ -161,9 +161,9 @@ def _wrap_tool_with_db_token(
     async def call_with_token(**arguments: Any):
         access_token = tokens_by_provider.get(provider)
         if not access_token:
-            raise ToolException(
-                f"{provider} is not connected for this user. "
-                "Connect it in the Connectors page first."
+            return (
+                f"Error: {provider} is not connected for this user. "
+                "Please tell the user to connect it in the Connectors page."
             )
         merged = dict(arguments)
         merged["token"] = access_token

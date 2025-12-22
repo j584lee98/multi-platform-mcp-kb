@@ -64,7 +64,8 @@ export default function ChatPage() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch response");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to fetch response");
       }
 
       const data = await res.json();
@@ -74,9 +75,10 @@ export default function ChatPage() {
       ]);
     } catch (error) {
       console.error("Error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Sorry, something went wrong.";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Sorry, something went wrong." },
+        { role: "assistant", content: errorMessage },
       ]);
     } finally {
       setIsLoading(false);
