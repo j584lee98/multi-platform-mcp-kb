@@ -18,6 +18,29 @@ A full-stack application integrating Model Context Protocol (MCP) servers with a
 - `mcp/slack`: Standalone MCP server providing Slack tools.
 - `db`: PostgreSQL database for user and token storage.
 
+## Screenshots
+
+### Home Page
+![Home Page](screenshots/home-page.png)
+
+### Google Drive Integration
+#### Connection
+![Google Drive Connection](screenshots/gdrive-conn.png)
+#### Chat
+![Google Drive Chat](screenshots/gdrive-chat.png)
+
+### GitHub Integration
+#### Connection
+![GitHub Connection](screenshots/github-conn.png)
+#### Chat
+![GitHub Chat](screenshots/github-chat.png)
+
+### Slack Integration
+#### Connection
+![Slack Connection](screenshots/slack-conn.png)
+#### Chat
+![Slack Chat](screenshots/slack-chat.png)
+
 ## Features
 
 ### Connectors & Tools
