@@ -5,14 +5,14 @@ A full-stack application integrating Model Context Protocol (MCP) servers with a
 ## Tech Stack
 
 - **Frontend**: Next.js 15, Tailwind CSS v4, React 19
-- **Backend**: FastAPI, SQLAlchemy (Async), PostgreSQL
+- **Backend**: FastAPI, SQLAlchemy (Async), PostgreSQL, LangChain, LangGraph
 - **MCP**: Python `mcp` SDK (FastMCP), Server-Sent Events (SSE) transport
 - **Infrastructure**: Docker Compose
 
 ## Architecture
 
-- `frontend`: Next.js app with authenticated sidebar layout.
-- `backend`: FastAPI service handling Auth (Google, GitHub, Slack OAuth) and MCP Client connections.
+- `frontend`: Next.js app with authenticated sidebar layout and real-time connection status indicators.
+- `backend`: FastAPI service handling Auth (Google, GitHub, Slack OAuth) and an intelligent MCP Agent powered by LangGraph.
 - `mcp/google-drive`: Standalone MCP server providing Google Drive tools.
 - `mcp/github`: Standalone MCP server providing GitHub tools.
 - `mcp/slack`: Standalone MCP server providing Slack tools.
@@ -83,7 +83,7 @@ A full-stack application integrating Model Context Protocol (MCP) servers with a
 
 3. **Run with Docker**:
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 4. **Access**:
