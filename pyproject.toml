@@ -1,10 +1,29 @@
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+exclude = [
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "node_modules",
+    "frontend",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
 ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "auth", "chat"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
