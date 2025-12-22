@@ -98,6 +98,41 @@ def list_issues(token: str, repo_full_name: str, state: str = "open") -> str:
         return json.dumps({"error": str(e)})
 
 @mcp.tool()
+def list_commits(token: str, repo_full_name: str, branch: str = None, limit: int = 10) -> str:
+    """
+    List commits for a specific repository branch. Returns a JSON string.
+    
+    Args:
+        token: The GitHub Personal Access Token or OAuth token.
+        repo_full_name: The full name of the repository (e.g., "owner/repo").
+        branch: The branch name (optional, defaults to default branch).
+        limit: Max number of commits to return (default 10).
+    """
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_full_name)
+        
+        kwargs = {}
+        if branch:
+            kwargs["sha"] = branch
+            
+        commits = []
+        for commit in repo.get_commits(**kwargs):
+            commits.append({
+                "sha": commit.sha,
+                "message": commit.commit.message,
+                "author_name": commit.commit.author.name,
+                "author_email": commit.commit.author.email,
+                "date": str(commit.commit.author.date),
+                "url": commit.html_url
+            })
+            if len(commits) >= limit:
+                break
+        return json.dumps(commits)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
 def list_branches(token: str, repo_full_name: str) -> str:
     """
     List branches for a specific repository. Returns a JSON string.
