@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ConnectorStatus from "@/app/components/ConnectorStatus";
 
 interface Message {
   role: "user" | "assistant";
@@ -90,7 +91,8 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col min-h-full max-w-4xl mx-auto px-4">
-      <div className="flex-1 space-y-4 pt-10 pb-32">
+      <ConnectorStatus />
+      <div className="flex-1 space-y-4 pt-5 pb-10">
 
         {messages.map((msg, index) => (
           <div

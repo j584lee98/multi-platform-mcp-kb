@@ -15,6 +15,7 @@ from .oauth import (
     handle_slack_callback,
 )
 from .services import authenticate_user, register_user
+from .deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,6 +34,24 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
 @router.post("/login")
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     return await authenticate_user(data.username, data.password, db)
+
+@router.get("/connectors/status")
+async def get_connectors_status(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(OAuthToken).where(OAuthToken.user_id == user.id)
+    )
+    tokens = result.scalars().all()
+    
+    connected_providers = {t.provider for t in tokens}
+    
+    return {
+        "google": "google" in connected_providers,
+        "github": "github" in connected_providers,
+        "slack": "slack" in connected_providers,
+    }
 
 # Google Routes
 @router.get("/google/login")
