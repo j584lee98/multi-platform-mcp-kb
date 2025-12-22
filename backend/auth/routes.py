@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from .deps import get_current_user
 from .oauth import (
     get_github_auth_url,
     get_google_auth_url,
@@ -15,7 +16,6 @@ from .oauth import (
     handle_slack_callback,
 )
 from .services import authenticate_user, register_user
-from .deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
